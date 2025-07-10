@@ -64,45 +64,60 @@ classdef APFPathPlanner
             Frep = zeros(3,1);
             for i = 1:length(obj.env.obstacles)
                 obs = obj.env.obstacles{i};
-        
                 switch obs.type
                     case 'cylinder'
                         center = obs.pos(1:2)';
                         height = obs.pos(3);
                         rou_center = norm(pos(1:2) - center);
-                        delta = rou_center - (obs.radius + obj.safetyMargin);
-                        delta = max(delta, eps);  % avoid div by zero
-                        sigma = 0.5 * (obs.radius + obj.safetyMargin);
-                        decay = exp(-delta^2 / (2 * sigma^2));
+                        delta = rou_center - (obs.radius + obj.safetyMargin);  % surface distance
+                        zeta = 4.5 * (obs.radius + obj.safetyMargin);
+                    
                         if pos(3) <= height + obj.safetyMargin
-                            dir = [(pos(1:2) - center); 0] / (rou_center + eps);
-                            Frep = Frep + obj.Krep * decay * dir;
+                            if delta <= 0  % inside or on surface
+                                dir = [(pos(1:2) - center); 0];
+                                Frep = Frep + obj.Krep * 1 * dir / (norm(dir) + eps);
+                            else
+                                delta = round(max(delta, 0.01), 4);  % force consistency
+                                d_rou = [(pos(1:2) - center); 0] / (rou_center + eps);
+                                sigma = 0.2 * (obs.radius + obj.safetyMargin);
+                                decay = exp(-delta^2 / (2 * sigma^2));
+                                Frep = Frep + obj.Krep * decay * d_rou;
+                            end
                         end
-        
                     case 'sphere'
                         center = obs.pos(:);
                         rou = norm(pos - center);
                         delta = rou - (obs.radius + obj.safetyMargin);
-                        delta = max(delta, eps);
-                        sigma = 0.5 * (obs.radius + obj.safetyMargin);
-                        decay = exp(-delta^2 / (2 * sigma^2));
-                        d_rou = (pos - center) / (rou + eps);
-                        Frep = Frep + obj.Krep * decay * d_rou;
-        
+                        delta = round(max(delta, 0.01), 4);  % force consistency
+                        zeta = 4.5 * (obs.radius + obj.safetyMargin);
+                        if delta < zeta
+                            d_rou = (pos - center) / (rou + eps);
+                            sigma = 0.2 * (obs.radius + obj.safetyMargin);
+                            decay = exp(-delta^2 / (2 * sigma^2));
+                            Frep = Frep + obj.Krep * decay * d_rou;
+                        end
+
                     case 'wall'
+                        wallDims = obs.dims(:);         % Ensure column vector
+                    
+                        % Compute distance to wall box
                         wallMin = obs.pos(:);
                         wallMax = wallMin + obs.dims(:);
-                        closestPoint = max(wallMin, min(pos, wallMax));  % projection
-                        delta = norm(pos - closestPoint);
-                        delta = max(delta, eps);
-                        sigma = 0.1 * (norm(obs.dims(:)) + obj.safetyMargin);  % smoother
-                        decay = exp(-delta^2 / (2 * sigma^2));
-                        d_rou = (pos - closestPoint) / (delta + eps);
-                        Frep = Frep + obj.Krep * decay * d_rou;
+                        closestPoint = max(wallMin, min(pos, wallMax));  % project pos into box
+                        delta = norm(pos - closestPoint);  % distance to wall surface
+                        delta = round(max(delta, 0.01), 4);  % force consistency
+                        zeta = 4.5 * (max(wallDims) + obj.safetyMargin);
+                        if delta < zeta
+                            d_rou = (pos - closestPoint) / (delta + eps);
+                            sigma = 0.2 * (obs.radius + obj.safetyMargin);
+                            decay = exp(-delta^2 / (2 * sigma^2));
+                            Frep = Frep + obj.Krep * decay * d_rou;
+                            Frep = Frep + obj.Krep * ((1/delta - 1/zeta) / (delta^2 + eps)) * d_rou;
+                        end
+
                 end
             end
         end
-
 
         function correction = computePushOut(obj, pos)
             correction = zeros(3,1);
@@ -259,6 +274,7 @@ classdef APFPathPlanner
         function plotRepulsionHeatmapAtZ(obj, zLevel, gridRes)
             % Define bounding area at specific horizontal Z-level
             [xmin, xmax, ymin, ymax, ~, ~] = obj.getEnvironmentBounds();
+        
             [X, Y] = meshgrid(xmin:gridRes:xmax, ymin:gridRes:ymax);
             Z = zLevel * ones(size(X));
         
@@ -281,7 +297,7 @@ classdef APFPathPlanner
             surf(X, Y, Z, magMap, 'EdgeColor', 'none');  % Color by magnitude
             colormap(jet);
             colorbar;
-            clim([minVal, maxVal]);
+            caxis([minVal, maxVal]);
         
             hold on;
             
@@ -290,7 +306,6 @@ classdef APFPathPlanner
         
             title(['Repulsive Force Heatmap at Z = ' num2str(zLevel)]);
             xlabel('X'); ylabel('Y'); zlabel('Z');
-            xlim([-10 30])
             axis tight;
             view(2);  % Top-down view
             grid on;

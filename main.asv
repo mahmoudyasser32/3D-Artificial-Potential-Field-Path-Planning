@@ -14,8 +14,8 @@ env = env.addWall([0 0 0], [20 0 5], [1 0 0]);  % width, depth, height
 env = env.addWall([0 0 0], [0 25 5], [1 0 0]);  % width, depth, 
 env = env.addWall([20 0 0], [0 25 5], [1 0 0]);  % width, depth, height
 env = env.addWall([0 25 0], [20 0 5], [1 0 0]);  % width, depth, height
-% % env = env.addWall([0 0 5], [20 25 0], [1 0 0]);  % width, depth, height
-% 
+% env = env.addWall([0 0 5], [20 25 0], [1 0 0]);  % width, depth, height
+
 for i = 1:length(radius)
     env = env.addCylinder(Cpos(i,:), radius(i), [0.25, 0.58, 0.96]);
 end
