@@ -39,7 +39,7 @@ The script will:
 
 ## 📸 Example Output
 
-![3D APF Simulation Result](image/apf_result.png)
+![3D APF Simulation Result](images/apf_result.png)
 
 ---
 
