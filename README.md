@@ -40,6 +40,7 @@ The script will:
 ## 📸 Example Output
 
 ![3D APF Simulation Result](images/apf_result.png)
+![heat_map](images/heat_map.png)
 
 ---
 
