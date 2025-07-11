@@ -95,7 +95,7 @@ classdef APFPathPlanner
                         closestPoint = max(wallMin, min(pos, wallMax));  % projection
                         delta = norm(pos - closestPoint);
                         delta = max(delta, eps);
-                        sigma = 0.1 * (norm(obs.dims(:)) + obj.safetyMargin);  % smoother
+                        sigma = 0.05 * (norm(obs.dims(:)) + obj.safetyMargin);  % smoother
                         decay = exp(-delta^2 / (2 * sigma^2));
                         d_rou = (pos - closestPoint) / (delta + eps);
                         Frep = Frep + obj.Krep * decay * d_rou;
